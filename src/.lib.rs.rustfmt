@@ -1,0 +1,122 @@
+mod flag_parser {
+    use std::env;
+    use std::fmt::Display;
+    use std::iter::Iterator;
+    type FlagsIndex = usize;
+    pub struct Flags(Vec<Flag>);
+
+    pub struct Flag {
+        name: String,
+        desc: String,
+        value: Box<dyn Display>,
+        mandatory: bool,
+    }
+
+    impl Flag {
+        fn new(name: String, desc: String, default: Box<dyn Display>) -> Self {
+            Flag {
+                name,
+                desc,
+                value: default,
+                mandatory: false,
+            }
+        }
+    }
+
+    impl Flags {
+        pub fn new() -> Flags {
+            Flags { 0: Vec::new() }
+        }
+
+        fn add(&mut self, name: String, desc: String, default: Box<dyn Display>) -> FlagsIndex {
+            let idx = self.0.len();
+            self.0.push(Flag::new(name, desc, default));
+            idx
+        }
+
+        pub fn new_str(&mut self, name: &str, desc: &str, default: &str) -> FlagsIndex {
+            self.add(
+                name.to_string(),
+                desc.to_string(),
+                Box::new(default.to_string()),
+            )
+        }
+
+        pub fn new_bool(&mut self, name: &str, desc: &str, default: bool) -> FlagsIndex {
+            self.add(name.to_string(), desc.to_string(), Box::new(default))
+        }
+
+        pub fn new_uint(&mut self, name: &str, desc: &str, default: usize) -> FlagsIndex {
+            self.add(name.to_string(), desc.to_string(), Box::new(default))
+        }
+
+        pub fn value(&self, idx: FlagsIndex) -> &Box<dyn Display> {
+            &self.0[idx].value
+        }
+
+        pub fn parse<I>(&mut self, mut args: I)
+        where
+            I: Iterator<Item = String>,
+        {
+            args.next();
+            for mut arg in args {
+                if arg.contains("-") {
+                let id = arg.remove(0);
+                if id == '-' {
+                }
+                }
+            }
+        }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use crate::flag_parser::*;
+
+    #[test]
+    fn test_args_can_be_parsed_into_flags() {
+        let args = vec!["cli-arg-parser", "-b", "true", "-u", "5"];
+
+        let mut flags = Flags::new();
+        let bool_idx = flags.new_bool("boolean", "boolean flag", false);
+        let uint_flag = flags.new_uint("uint", "uint flag", 6);
+
+        flags.parse(args.iter());
+
+        assert_eq!("true", format!("{}", flags.value(bool_idx)));
+        assert_eq!("5", format!("{}", flags.value(uint_flag)));
+    }
+
+    #[test]
+    fn test_strings_added_to_flags() {
+        let mut flags = Flags::new();
+
+        let str_idx = flags.new_str("H", "This is the hello Flag.", "Hello");
+        let str_idx2 = flags.new_str("W", "This is the world Flag.", "World");
+
+        assert_eq!("Hello", format!("{}", flags.value(str_idx)));
+        assert_eq!("World", format!("{}", flags.value(str_idx2)));
+    }
+
+    #[test]
+    fn test_bools_added_to_flags() {
+        let mut flags = Flags::new();
+
+        let bool_idx = flags.new_bool("F", "This is the false Flag.", false);
+        let bool_idx2 = flags.new_bool("T", "This is the true Flag.", true);
+
+        assert_eq!("false", format!("{}", flags.value(bool_idx)));
+        assert_eq!("true", format!("{}", flags.value(bool_idx2)));
+    }
+
+    #[test]
+    fn test_ints_added_to_flags() {
+        let mut flags = Flags::new();
+
+        let uint_idx = flags.new_uint("6", "This is the false Flag.", 6);
+        let uint_idx2 = flags.new_uint("5", "This is the true Flag.", 5);
+
+        assert_eq!("6", format!("{}", flags.value(uint_idx)));
+        assert_eq!("5", format!("{}", flags.value(uint_idx2)));
+    }
+}
