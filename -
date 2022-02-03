@@ -1,4 +1,5 @@
 use std::env;
+use std::error::Error;
 use std::fmt::Display;
 use std::iter::Iterator;
 use std::str::FromStr;
@@ -76,15 +77,7 @@ impl Flags {
         )
     }
 
-    pub fn value_as_uint(&self, idx: FlagsIndex) -> usize {
-            usize::from_str(&format!("{}", &self.0[idx].value)).unwrap()
-    }
-    
-    pub fn value_as_bool(&self, idx: FlagsIndex) -> bool {
-            bool::from_str(&format!("{}", &self.0[idx].value)).unwrap()
-    }
-
-    pub fn value_as_str(&self, idx: FlagsIndex) -> &Box<dyn Display> {
+    pub fn value(&self, idx: FlagsIndex) -> &Box<dyn Display> {
         &self.0[idx].value
     }
 
@@ -92,17 +85,15 @@ impl Flags {
         self.0[idx].value = Box::new(arg);
     }
 
-    fn contains(&self, flag_name: &str) -> Option<FlagsIndex> {
-        for (idx, flag) in self.0.iter().enumerate() {
-            if flag.name == flag_name {
-                return Some(idx);
+   fn contains(&self, flag_name: &String) -> Option<FlagsIndex> {
+        if flag_name.chars().next().unwrap() == '-' {
+            for (idx, flag) in &self.0 {
+                if flag == flag_name[1..] {
+                    return Some(idx)
+                }
             }
         }
         None
-    }
-
-    fn show_help(&self) {
-        todo!()
     }
 
     pub fn parse<I>(&mut self, mut args: I)
@@ -113,8 +104,10 @@ impl Flags {
         args.next();
 
         for arg in args {
-            if arg.contains("--") {
-                if let Some(idx) = self.contains(&arg[2..]) {
+            println!("Arg: {}", arg);
+            if arg.contains("-") {
+                if let Some(idx) = self.contains(&arg) {
+                    println!("Index: {}", idx);
                     flag_idx = idx;
                 }
             } else {
@@ -133,7 +126,7 @@ mod tests {
         let bool_idx = flags.new_bool("boolean", "boolean flag", false);
         let uint_idx = flags.new_uint("uint", "uint flag", 6);
 
-        if let Some(idx) = flags.contains("uint") {
+        if let Some(idx) = flags.contains(&"-uint".to_string()) {
             assert_eq!(1, idx);
             assert_eq!(uint_idx, idx);
             assert_ne!(uint_idx, bool_idx)
@@ -147,23 +140,13 @@ mod tests {
         let mut flags = Flags::new();
         let bool_idx = flags.new_bool("boolean", "boolean flag", false);
 
-        if let Some(idx) = flags.contains("boolean") {
+        if let Some(idx) = flags.contains(&"-boolean".to_string()) {
             assert_eq!(0, idx);
             assert_eq!(bool_idx, idx)
         } else {
             panic!()
         }
     }
-    #[test]
-    fn flag_value_can_be_returned_as_correct_type() {
-        let mut flags = Flags::new();
-        let bool_idx = flags.new_bool("boolean", "boolean flag", false);
-        let uint_idx = flags.new_uint("uint", "uint flag", 6);
-
-        assert_eq!(6, flags.value_as_uint(uint_idx));
-        assert_eq!(false, flags.value_as_bool(bool_idx));
-    }
-
 
     #[test]
     fn flag_value_can_be_changed() {
@@ -171,12 +154,12 @@ mod tests {
         let bool_idx = flags.new_bool("boolean", "boolean flag", false);
 
         flags.change_value(bool_idx, "true".to_string());
-        assert_eq!("true", format!("{}", flags.value_as_str(bool_idx)));
+        assert_eq!("true", format!("{}", flags.value(bool_idx)));
     }
 
     #[test]
     fn args_can_be_parsed_into_flags() {
-        let args = vec!["cli-arg-parser", "--boolean", "true", "--uint", "5"];
+        let args = vec!["cli-arg-parser", "-boolean", "true", "-uint", "5"];
         let args: Vec<String> = args.iter().map(|elem| elem.to_string()).collect();
 
         let mut flags = Flags::new();
@@ -185,8 +168,8 @@ mod tests {
 
         flags.parse(args.into_iter());
 
-        assert_eq!("true", format!("{}", flags.value_as_str(bool_idx)));
-        assert_eq!("5", format!("{}", flags.value_as_str(uint_idx)));
+        assert_eq!("true", format!("{}", flags.value(bool_idx)));
+        assert_eq!("5", format!("{}", flags.value(uint_idx)));
     }
 
     #[test]
@@ -196,8 +179,8 @@ mod tests {
         let str_idx = flags.new_str("H", "This is the hello Flag.", "Hello");
         let str_idx2 = flags.new_str("W", "This is the world Flag.", "World");
 
-        assert_eq!("Hello", format!("{}", flags.value_as_str(str_idx)));
-        assert_eq!("World", format!("{}", flags.value_as_str(str_idx2)));
+        assert_eq!("Hello", format!("{}", flags.value(str_idx)));
+        assert_eq!("World", format!("{}", flags.value(str_idx2)));
     }
 
     #[test]
@@ -207,8 +190,8 @@ mod tests {
         let bool_idx = flags.new_bool("F", "This is the false Flag.", false);
         let bool_idx2 = flags.new_bool("T", "This is the true Flag.", true);
 
-        assert_eq!("false", format!("{}", flags.value_as_str(bool_idx)));
-        assert_eq!("true", format!("{}", flags.value_as_str(bool_idx2)));
+        assert_eq!("false", format!("{}", flags.value(bool_idx)));
+        assert_eq!("true", format!("{}", flags.value(bool_idx2)));
     }
 
     #[test]
@@ -218,7 +201,8 @@ mod tests {
         let uint_idx = flags.new_uint("6", "This is the false Flag.", 6);
         let uint_idx2 = flags.new_uint("5", "This is the true Flag.", 5);
 
-        assert_eq!("6", format!("{}", flags.value_as_str(uint_idx)));
-        assert_eq!("5", format!("{}", flags.value_as_str(uint_idx2)));
-    }
+        assert_eq!("6", format!("{}", flags.value(uint_idx)));
+        assert_eq!("5", format!("{}", flags.value(uint_idx2)));
+   }
 }
+
